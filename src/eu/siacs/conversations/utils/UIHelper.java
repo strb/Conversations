@@ -54,6 +54,35 @@ public class UIHelper {
 	private static final int DATE_NO_YEAR_FLAGS = DateUtils.FORMAT_SHOW_DATE
 			| DateUtils.FORMAT_NO_YEAR | DateUtils.FORMAT_ABBREV_ALL;
 
+	private static class PatternCacheElement{
+		public Pattern pattern;
+		public String replacement;
+		
+		public PatternCacheElement(Pattern pattern, String replacement){
+			this.pattern = pattern;
+			this.replacement = replacement;
+		}
+	}
+
+	private static Pattern wrapEmoticonPattern(String emoticon){
+		return Pattern.compile("(?<=(^|\\s))"+emoticon+"(?=(\\s|$))");
+	}
+
+	private static PatternCacheElement emoticonPatternCache[] = 
+		new PatternCacheElement[]{
+			new PatternCacheElement(wrapEmoticonPattern(":-?\\)"), "\uD83D\uDE0A"),
+			new PatternCacheElement(wrapEmoticonPattern(";-?\\)"), "\uD83D\uDE09"),
+			new PatternCacheElement(wrapEmoticonPattern(":-?D"), "\uD83D\uDE03" ),
+			new PatternCacheElement(wrapEmoticonPattern(":-?[Ppb]"), "\uD83D\uDE1D" ),
+			new PatternCacheElement(wrapEmoticonPattern("8-?\\)"), "\uD83D\uDE0E" ),
+			new PatternCacheElement(wrapEmoticonPattern(":-?\\|"), "\uD83D\uDE09" ),
+			new PatternCacheElement(wrapEmoticonPattern(":-?[/\\\\]"), "\uD83D\uDE15" ),
+			new PatternCacheElement(wrapEmoticonPattern(":-?\\*"), "\uD83D\uDE17" ),
+			new PatternCacheElement(wrapEmoticonPattern(":-?[0Oo]"), "\uD83D\uDE2E" ),
+			new PatternCacheElement(wrapEmoticonPattern(":-?\\("), "\uD83D\uDE1E" ),
+			new PatternCacheElement(wrapEmoticonPattern("\\^\\^"), "\uD83D\uDE01" )
+		};
+
 	public static String readableTimeDifference(Context context, long time) {
 		if (time == 0) {
 			return context.getString(R.string.just_now);
@@ -546,22 +575,8 @@ public class UIHelper {
 	}
 	public static String transformAsciiEmoticons(String body) {
 		if (body != null) {
-			for (String[] r: new String[][]{ // see https://de.wikipedia.org/wiki/Unicodeblock_Smileys
-				{":-?\\)", " 😀 ", },
-				{";-?\\)", " 😉 ", },
-				{":-?D", " 😃 ", },
-				{":-?[Ppb]", " 😋 ", },
-				{"8-?\\)", " 😎 ", },
-				{":-?\\|", " 😐 ", },
-				{":-?[/\\\\]", " 😕 ", },
-				{":-?\\*", " 😗 ", },
-				{":-?[0Oo]", " 😮 ", },
-				{":-?\\(", " 😞 ", },
-				{"\\^\\^", " 😁 ", },
-			}) {
-				String p = r[0];
-				p = "(^" + p + "$|^" + p + "\\s+|\\s+" + p + "\\s+|\\s+" + p + "$)";
-				body = body.replaceAll(p, r[1]);
+			for (PatternCacheElement e: emoticonPatternCache) {
+				body = e.pattern.matcher(body).replaceAll(e.replacement);
 			}
 			body = body.trim();
 		}
