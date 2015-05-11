@@ -3,12 +3,14 @@ package eu.siacs.conversations.ui.adapter;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
+import android.text.style.LineHeightSpan;
 import android.text.style.RelativeSizeSpan;
 import android.text.style.StyleSpan;
 import android.util.DisplayMetrics;
@@ -46,12 +48,30 @@ public class MessageAdapter extends ArrayAdapter<Message> {
 	private static final int STATUS = 2;
 	private static final int NULL = 3;
 
+	private static final int TOP_SPACING=5;
+	private static final int BOTTOM_SPACING=5;
+
 	private ConversationActivity activity;
 
 	private DisplayMetrics metrics;
 
 	private OnContactPictureClicked mOnContactPictureClickedListener;
 	private OnContactPictureLongClicked mOnContactPictureLongClickedListener;
+
+	private static class MessageParagraph implements LineHeightSpan {
+		@Override
+		public void chooseHeight(CharSequence text, int start, int end, int spanstartv, int v, Paint.FontMetricsInt fm) {
+			Spanned spanned = (Spanned) text;
+			if (start != 0 && start == spanned.getSpanStart(this)) {
+				fm.ascent -= TOP_SPACING;
+				fm.top -= TOP_SPACING;
+			}
+			if (end != text.length() && end == spanned.getSpanEnd(this)) {
+				fm.descent += BOTTOM_SPACING;
+				fm.bottom += BOTTOM_SPACING;
+			}
+		}
+	}
 
 	private OnLongClickListener openContextMenu = new OnLongClickListener() {
 
@@ -244,7 +264,17 @@ public class MessageAdapter extends ArrayAdapter<Message> {
 							Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
 					viewHolder.messageBody.setText(span);
 				} else {
-					viewHolder.messageBody.setText(message.getMergedBody());
+					String m = message.getMergedBody();
+					final Spannable paragraph = new SpannableString(m);
+
+					int oldparbreak = 0;
+					for(int parbreak = m.indexOf(Message.PARAGRAPH_BREAK); parbreak >= 2; parbreak = m.indexOf(Message.PARAGRAPH_BREAK,oldparbreak)+2) {
+						paragraph.setSpan(new MessageParagraph(), oldparbreak, parbreak, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+						oldparbreak = parbreak;
+					}
+
+					paragraph.setSpan(new MessageParagraph(), oldparbreak, message.getMergedBody().length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+					viewHolder.messageBody.setText(paragraph);
 				}
 			} else {
 				String privateMarker;

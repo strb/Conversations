@@ -51,6 +51,7 @@ public class Message extends AbstractEntity {
 	public static final String RELATIVE_FILE_PATH = "relativeFilePath";
 	public static final String ME_COMMAND = "/me ";
 
+	public static final char PARAGRAPH_BREAK = '\u2029';
 
 	public boolean markable = false;
 	protected String conversationUuid;
@@ -396,7 +397,7 @@ public class Message extends AbstractEntity {
 	public String getMergedBody() {
 		final Message next = this.next();
 		if (this.mergeable(next)) {
-			return getBody().trim() + '\n' + next.getMergedBody();
+			return getBody().trim() + PARAGRAPH_BREAK + '\n' + next.getMergedBody();
 		}
 		return getBody().trim();
 	}
