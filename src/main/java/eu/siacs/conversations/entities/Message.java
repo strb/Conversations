@@ -64,6 +64,7 @@ public class Message extends AbstractEntity {
 	protected int encryption;
 	protected int status;
 	protected int type;
+	private boolean isTrusted = true;
 	protected String relativeFilePath;
 	protected boolean read = true;
 	protected String remoteMsgId = null;
@@ -592,5 +593,17 @@ public class Message extends AbstractEntity {
 		public int width = 0;
 		public int height = 0;
 		public String origin;
+	}
+
+	public void trust() {
+		this.isTrusted = true;
+	}
+
+	public void distrust() {
+		this.isTrusted = false;
+	}
+
+	public boolean isTrusted() {
+		return this.isTrusted;
 	}
 }
