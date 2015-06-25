@@ -78,6 +78,7 @@ import eu.siacs.conversations.utils.ExceptionHelper;
 import eu.siacs.conversations.utils.OnPhoneContactsLoadedListener;
 import eu.siacs.conversations.utils.PRNGFixes;
 import eu.siacs.conversations.utils.PhoneHelper;
+import eu.siacs.conversations.utils.SerialSingleThreadExecutor;
 import eu.siacs.conversations.utils.Xmlns;
 import eu.siacs.conversations.xml.Element;
 import eu.siacs.conversations.xmpp.OnBindListener;
@@ -120,6 +121,10 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 			startService(intent);
 		}
 	};
+
+	private final SerialSingleThreadExecutor mFileAddingExecutor = new SerialSingleThreadExecutor();
+	private final SerialSingleThreadExecutor mDatabaseExecutor = new SerialSingleThreadExecutor();
+
 	private final IBinder mBinder = new XmppConnectionBinder();
 	private final List<Conversation> conversations = new CopyOnWriteArrayList<>();
 	private final FileObserver fileObserver = new FileObserver(
@@ -378,7 +383,7 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 				callback.success(message);
 			}
 		} else {
-			new Thread(new Runnable() {
+			mFileAddingExecutor.execute(new Runnable() {
 				@Override
 				public void run() {
 					try {
@@ -393,8 +398,7 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 						callback.error(e.getResId(),message);
 					}
 				}
-			}).start();
-
+			});
 		}
 	}
 
@@ -410,7 +414,7 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 		}
 		message.setCounterpart(conversation.getNextCounterpart());
 		message.setType(Message.TYPE_IMAGE);
-		new Thread(new Runnable() {
+		mFileAddingExecutor.execute(new Runnable() {
 
 			@Override
 			public void run() {
@@ -425,7 +429,7 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 					callback.error(e.getResId(), message);
 				}
 			}
-		}).start();
+		});
 	}
 
 	public Conversation find(Bookmark bookmark) {
@@ -956,7 +960,7 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 			public void run() {
 				Log.d(Config.LOGTAG,"start merging phone contacts with roster");
 				for (Account account : accounts) {
-					account.getRoster().clearSystemAccounts();
+					List<Contact> withSystemAccounts = account.getRoster().getWithSystemAccounts();
 					for (Bundle phoneContact : phoneContacts) {
 						if (Thread.interrupted()) {
 							Log.d(Config.LOGTAG,"interrupted merging phone contacts");
@@ -973,9 +977,18 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 							+ "#"
 							+ phoneContact.getString("lookup");
 						contact.setSystemAccount(systemAccount);
-						contact.setPhotoUri(phoneContact.getString("photouri"));
-						getAvatarService().clear(contact);
+						if (contact.setPhotoUri(phoneContact.getString("photouri"))) {
+							getAvatarService().clear(contact);
+						}
 						contact.setSystemName(phoneContact.getString("displayname"));
+						withSystemAccounts.remove(contact);
+					}
+					for(Contact contact : withSystemAccounts) {
+						contact.setSystemAccount(null);
+						contact.setSystemName(null);
+						if (contact.setPhotoUri(null)) {
+							getAvatarService().clear(contact);
+						}
 					}
 				}
 				Log.d(Config.LOGTAG,"finished merging phone contacts");
@@ -996,7 +1009,7 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 				Account account = accountLookupTable.get(conversation.getAccountUuid());
 				conversation.setAccount(account);
 			}
-			new Thread(new Runnable() {
+			Runnable runnable =new Runnable() {
 				@Override
 				public void run() {
 					Log.d(Config.LOGTAG,"restoring roster");
@@ -1017,7 +1030,8 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 					Log.d(Config.LOGTAG,"restored all messages");
 					updateConversationUi();
 				}
-			}).start();
+			};
+			mDatabaseExecutor.execute(runnable);
 		}
 	}
 
@@ -1086,7 +1100,7 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 		if (XmppConnectionService.this.getMessageArchiveService().queryInProgress(conversation,callback)) {
 			return;
 		}
-		new Thread(new Runnable() {
+		Runnable runnable = new Runnable() {
 			@Override
 			public void run() {
 				final Account account = conversation.getAccount();
@@ -1105,7 +1119,8 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 					callback.informUser(R.string.fetching_history_from_server);
 				}
 			}
-		}).start();
+		};
+		mDatabaseExecutor.execute(runnable);
 	}
 
 	public List<Account> getAccounts() {
@@ -2364,13 +2379,14 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 	}
 
 	public void syncRosterToDisk(final Account account) {
-		new Thread(new Runnable() {
+		Runnable runnable = new Runnable() {
 
 			@Override
 			public void run() {
 				databaseBackend.writeRoster(account.getRoster());
 			}
-		}).start();
+		};
+		mDatabaseExecutor.execute(runnable);
 
 	}
 

@@ -6,7 +6,7 @@ buildscript {
 		mavenCentral()
 	}
 	dependencies {
-		classpath 'com.android.tools.build:gradle:1.0.1'
+		classpath 'com.android.tools.build:gradle:1.2.3'
 	}
 }
 
@@ -46,8 +46,8 @@ android {
 	defaultConfig {
 		minSdkVersion 14
 		targetSdkVersion 21
-		versionCode 70
-		versionName "1.5.0-alpha"
+		versionCode 72
+		versionName "1.4.4"
 	}
 
 	compileOptions {

@@ -294,13 +294,14 @@ public class MessageParser extends AbstractParser implements
 			Conversation conversation = mXmppConnectionService.findOrCreateConversation(account, counterpart.toBareJid(), isTypeGroupChat);
 			if (isTypeGroupChat) {
 				if (counterpart.getResourcepart().equals(conversation.getMucOptions().getActualNick())) {
-					status = Message.STATUS_SEND;
-					if (mXmppConnectionService.markMessage(conversation, remoteMsgId, Message.STATUS_SEND_RECEIVED)) {
+					status = Message.STATUS_SEND_RECEIVED;
+					if (mXmppConnectionService.markMessage(conversation, remoteMsgId, status)) {
 						return;
-					} else if (remoteMsgId == null) {
-						Message message = conversation.findSentMessageWithBody(packet.getBody());
+					} else {
+						Message message = conversation.findSentMessageWithBody(body);
 						if (message != null) {
-							mXmppConnectionService.markMessage(message, Message.STATUS_SEND_RECEIVED);
+							message.setRemoteMsgId(remoteMsgId);
+							mXmppConnectionService.markMessage(message, status);
 							return;
 						}
 					}
@@ -352,7 +353,7 @@ public class MessageParser extends AbstractParser implements
 			}
 			conversation.add(message);
 			if (serverMsgId == null) {
-				if (status == Message.STATUS_SEND) {
+				if (status == Message.STATUS_SEND || status == Message.STATUS_SEND_RECEIVED) {
 					mXmppConnectionService.markRead(conversation);
 					account.activateGracePeriod();
 				} else {
@@ -399,7 +400,7 @@ public class MessageParser extends AbstractParser implements
 			if (packet.hasChild("subject") && isTypeGroupChat) {
 				Conversation conversation = mXmppConnectionService.find(account, from.toBareJid());
 				if (conversation != null && conversation.getMode() == Conversation.MODE_MULTI) {
-					conversation.setHasMessagesLeftOnServer(true);
+					conversation.setHasMessagesLeftOnServer(conversation.countMessages() > 0);
 					conversation.getMucOptions().setSubject(packet.findChildContent("subject"));
 					mXmppConnectionService.updateConversationUi();
 					return;
