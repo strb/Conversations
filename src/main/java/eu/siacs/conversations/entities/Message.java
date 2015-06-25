@@ -8,6 +8,7 @@ import java.net.URL;
 import java.util.Arrays;
 
 import eu.siacs.conversations.Config;
+import eu.siacs.conversations.crypto.axolotl.AxolotlService;
 import eu.siacs.conversations.utils.GeoHelper;
 import eu.siacs.conversations.utils.UIHelper;
 import eu.siacs.conversations.xmpp.jid.InvalidJidException;
@@ -33,6 +34,7 @@ public class Message extends AbstractEntity {
 	public static final int ENCRYPTION_OTR = 2;
 	public static final int ENCRYPTION_DECRYPTED = 3;
 	public static final int ENCRYPTION_DECRYPTION_FAILED = 4;
+	public static final int ENCRYPTION_AXOLOTL = 5;
 
 	public static final int TYPE_TEXT = 0;
 	public static final int TYPE_IMAGE = 1;
@@ -64,7 +66,7 @@ public class Message extends AbstractEntity {
 	protected int encryption;
 	protected int status;
 	protected int type;
-	private boolean isTrusted = true;
+	private AxolotlService.XmppAxolotlSession axolotlSession = null;
 	protected String relativeFilePath;
 	protected boolean read = true;
 	protected String remoteMsgId = null;
@@ -595,15 +597,7 @@ public class Message extends AbstractEntity {
 		public String origin;
 	}
 
-	public void trust() {
-		this.isTrusted = true;
-	}
-
-	public void distrust() {
-		this.isTrusted = false;
-	}
-
 	public boolean isTrusted() {
-		return this.isTrusted;
+		return this.axolotlSession != null && this.axolotlSession.isTrusted();
 	}
 }
