@@ -272,9 +272,9 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 					}
 				}
 				syncDirtyContacts(account);
-                account.getAxolotlService().publishOwnDeviceIdIfNeeded();
-                account.getAxolotlService().publishBundleIfNeeded();
-                account.getAxolotlService().publishPreKeysIfNeeded();
+				account.getAxolotlService().publishOwnDeviceIdIfNeeded();
+				account.getAxolotlService().publishBundleIfNeeded();
+				account.getAxolotlService().publishPreKeysIfNeeded();
 
 				scheduleWakeUpCall(Config.PING_MAX_INTERVAL, account.getUuid().hashCode());
 			} else if (account.getStatus() == Account.State.OFFLINE) {
@@ -706,65 +706,65 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 					message.setStatus(Message.STATUS_WAITING);
 				}
 			} else {
-                switch(message.getEncryption()) {
-                    case Message.ENCRYPTION_OTR:
-                        if (!conv.hasValidOtrSession() && (message.getCounterpart() != null)) {
-                            conv.startOtrSession(message.getCounterpart().getResourcepart(), true);
-                            message.setStatus(Message.STATUS_WAITING);
-                        } else if (conv.hasValidOtrSession()) {
-                            if (conv.getOtrSession().getSessionStatus() == SessionStatus.ENCRYPTED) {
-                                packet = mMessageGenerator.generateOtrChat(message);
-                                send = true;
-                            } else {
-                                message.setStatus(Message.STATUS_WAITING);
-                                conv.startOtrIfNeeded();
-                            }
-                        } else {
-                            message.setStatus(Message.STATUS_WAITING);
-                        }
-                        break;
+				switch(message.getEncryption()) {
+					case Message.ENCRYPTION_OTR:
+						if (!conv.hasValidOtrSession() && (message.getCounterpart() != null)) {
+							conv.startOtrSession(message.getCounterpart().getResourcepart(), true);
+							message.setStatus(Message.STATUS_WAITING);
+						} else if (conv.hasValidOtrSession()) {
+							if (conv.getOtrSession().getSessionStatus() == SessionStatus.ENCRYPTED) {
+								packet = mMessageGenerator.generateOtrChat(message);
+								send = true;
+							} else {
+								message.setStatus(Message.STATUS_WAITING);
+								conv.startOtrIfNeeded();
+							}
+						} else {
+							message.setStatus(Message.STATUS_WAITING);
+						}
+						break;
 
-                    case Message.ENCRYPTION_DECRYPTED:
-                        message.getConversation().endOtrIfNeeded();
-                        message.getConversation().findUnsentMessagesWithOtrEncryption(new Conversation.OnMessageFound() {
-                            @Override
-                            public void onMessageFound(Message message) {
-                                markMessage(message,Message.STATUS_SEND_FAILED);
-                            }
-                        });
-                        packet = mMessageGenerator.generatePgpChat(message);
-                        send = true;
-                        break;
+					case Message.ENCRYPTION_DECRYPTED:
+						message.getConversation().endOtrIfNeeded();
+						message.getConversation().findUnsentMessagesWithOtrEncryption(new Conversation.OnMessageFound() {
+							@Override
+							public void onMessageFound(Message message) {
+								markMessage(message,Message.STATUS_SEND_FAILED);
+							}
+						});
+						packet = mMessageGenerator.generatePgpChat(message);
+						send = true;
+						break;
 
-                    case Message.ENCRYPTION_AXOLOTL:
-                        message.getConversation().endOtrIfNeeded();
-                        message.getConversation().findUnsentMessagesWithOtrEncryption(new Conversation.OnMessageFound() {
-                            @Override
-                            public void onMessageFound(Message message) {
-                                markMessage(message,Message.STATUS_SEND_FAILED);
-                            }
-                        });
+					case Message.ENCRYPTION_AXOLOTL:
+						message.getConversation().endOtrIfNeeded();
+						message.getConversation().findUnsentMessagesWithOtrEncryption(new Conversation.OnMessageFound() {
+							@Override
+							public void onMessageFound(Message message) {
+								markMessage(message,Message.STATUS_SEND_FAILED);
+							}
+						});
 
-                        try {
-                            packet = mMessageGenerator.generateAxolotlChat(message);
-                            Log.d(Config.LOGTAG, "Succeeded generating axolotl chat message!");
-                            send = true;
-                        } catch (NoSessionsCreatedException e) {
-                            message.setStatus(Message.STATUS_WAITING);
-                        }
-                        break;
+						try {
+							packet = mMessageGenerator.generateAxolotlChat(message);
+							Log.d(Config.LOGTAG, "Succeeded generating axolotl chat message!");
+							send = true;
+						} catch (NoSessionsCreatedException e) {
+							message.setStatus(Message.STATUS_WAITING);
+						}
+						break;
 
-                    default:
-                        message.getConversation().endOtrIfNeeded();
-                        message.getConversation().findUnsentMessagesWithOtrEncryption(new Conversation.OnMessageFound() {
-                            @Override
-                            public void onMessageFound(Message message) {
-                                markMessage(message,Message.STATUS_SEND_FAILED);
-                            }
-                        });
-                        packet = mMessageGenerator.generateChat(message);
-                        send = true;
-                        break;
+					default:
+						message.getConversation().endOtrIfNeeded();
+						message.getConversation().findUnsentMessagesWithOtrEncryption(new Conversation.OnMessageFound() {
+							@Override
+							public void onMessageFound(Message message) {
+								markMessage(message,Message.STATUS_SEND_FAILED);
+							}
+						});
+						packet = mMessageGenerator.generateChat(message);
+						send = true;
+						break;
 				}
 			}
 			if (!account.getXmppConnection().getFeatures().sm()
