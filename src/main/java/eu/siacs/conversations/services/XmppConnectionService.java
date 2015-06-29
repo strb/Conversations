@@ -725,7 +725,8 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 
 					case Message.ENCRYPTION_DECRYPTED:
 						message.getConversation().endOtrIfNeeded();
-						message.getConversation().findUnsentMessagesWithOtrEncryption(new Conversation.OnMessageFound() {
+						message.getConversation().findUnsentMessagesWithEncryption(
+								Message.ENCRYPTION_OTR, new Conversation.OnMessageFound() {
 							@Override
 							public void onMessageFound(Message message) {
 								markMessage(message,Message.STATUS_SEND_FAILED);
@@ -737,25 +738,22 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 
 					case Message.ENCRYPTION_AXOLOTL:
 						message.getConversation().endOtrIfNeeded();
-						message.getConversation().findUnsentMessagesWithOtrEncryption(new Conversation.OnMessageFound() {
+						message.getConversation().findUnsentMessagesWithEncryption(
+								Message.ENCRYPTION_OTR, new Conversation.OnMessageFound() {
 							@Override
 							public void onMessageFound(Message message) {
-								markMessage(message,Message.STATUS_SEND_FAILED);
+								markMessage(message, Message.STATUS_SEND_FAILED);
 							}
 						});
 
-						try {
-							packet = mMessageGenerator.generateAxolotlChat(message);
-							Log.d(Config.LOGTAG, "Succeeded generating axolotl chat message!");
-							send = true;
-						} catch (NoSessionsCreatedException e) {
-							message.setStatus(Message.STATUS_WAITING);
-						}
+						message.setStatus(Message.STATUS_WAITING);
+						account.getAxolotlService().sendMessage(message);
 						break;
 
 					default:
 						message.getConversation().endOtrIfNeeded();
-						message.getConversation().findUnsentMessagesWithOtrEncryption(new Conversation.OnMessageFound() {
+						message.getConversation().findUnsentMessagesWithEncryption(
+								Message.ENCRYPTION_OTR, new Conversation.OnMessageFound() {
 							@Override
 							public void onMessageFound(Message message) {
 								markMessage(message,Message.STATUS_SEND_FAILED);
@@ -1827,7 +1825,7 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 				account.getJid().toBareJid() + " otr session established with "
 						+ conversation.getJid() + "/"
 						+ otrSession.getSessionID().getUserID());
-		conversation.findUnsentMessagesWithOtrEncryption(new Conversation.OnMessageFound() {
+		conversation.findUnsentMessagesWithEncryption(Message.ENCRYPTION_OTR, new Conversation.OnMessageFound() {
 
 			@Override
 			public void onMessageFound(Message message) {
