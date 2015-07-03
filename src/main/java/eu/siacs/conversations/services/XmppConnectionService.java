@@ -51,7 +51,6 @@ import de.duenndns.ssl.MemorizingTrustManager;
 import eu.siacs.conversations.Config;
 import eu.siacs.conversations.R;
 import eu.siacs.conversations.crypto.PgpEngine;
-import eu.siacs.conversations.crypto.axolotl.NoSessionsCreatedException;
 import eu.siacs.conversations.entities.Account;
 import eu.siacs.conversations.entities.Blockable;
 import eu.siacs.conversations.entities.Bookmark;
@@ -727,11 +726,11 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 						message.getConversation().endOtrIfNeeded();
 						message.getConversation().findUnsentMessagesWithEncryption(
 								Message.ENCRYPTION_OTR, new Conversation.OnMessageFound() {
-							@Override
-							public void onMessageFound(Message message) {
-								markMessage(message,Message.STATUS_SEND_FAILED);
-							}
-						});
+									@Override
+									public void onMessageFound(Message message) {
+										markMessage(message, Message.STATUS_SEND_FAILED);
+									}
+								});
 						packet = mMessageGenerator.generatePgpChat(message);
 						send = true;
 						break;
@@ -747,18 +746,20 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 						});
 
 						message.setStatus(Message.STATUS_WAITING);
-						account.getAxolotlService().sendMessage(message);
+						if(account.isOnlineAndConnected()) {
+							account.getAxolotlService().prepareMessage(message);
+						}
 						break;
 
 					default:
 						message.getConversation().endOtrIfNeeded();
 						message.getConversation().findUnsentMessagesWithEncryption(
 								Message.ENCRYPTION_OTR, new Conversation.OnMessageFound() {
-							@Override
-							public void onMessageFound(Message message) {
-								markMessage(message,Message.STATUS_SEND_FAILED);
-							}
-						});
+									@Override
+									public void onMessageFound(Message message) {
+										markMessage(message, Message.STATUS_SEND_FAILED);
+									}
+								});
 						packet = mMessageGenerator.generateChat(message);
 						send = true;
 						break;
@@ -817,7 +818,7 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 		});
 	}
 
-	private void resendMessage(final Message message) {
+	public void resendMessage(final Message message) {
 		Account account = message.getConversation().getAccount();
 		MessagePacket packet = null;
 		if (message.getEncryption() == Message.ENCRYPTION_OTR) {
@@ -855,7 +856,12 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 			} else if ((message.getEncryption() == Message.ENCRYPTION_DECRYPTED)
 					|| (message.getEncryption() == Message.ENCRYPTION_PGP)) {
 				packet = mMessageGenerator.generatePgpChat(message, true);
-					}
+			} else if (message.getEncryption() == Message.ENCRYPTION_AXOLOTL) {
+				packet = account.getAxolotlService().fetchPacketFromCache(message);
+				if (packet == null && account.isOnlineAndConnected()) {
+					account.getAxolotlService().prepareMessage(message);
+				}
+			}
 		} else if (message.getType() == Message.TYPE_IMAGE || message.getType() == Message.TYPE_FILE) {
 			Contact contact = message.getConversation().getContact();
 			Presences presences = contact.getPresences();
@@ -874,7 +880,7 @@ public class XmppConnectionService extends Service implements OnPhoneContactsLoa
 				}
 			}
 		}
-		if (packet != null) {
+		if (packet != null && account.isOnlineAndConnected()) {
 			if (!account.getXmppConnection().getFeatures().sm()
 					&& message.getConversation().getMode() != Conversation.MODE_MULTI) {
 				markMessage(message, Message.STATUS_SEND);
